@@ -40,12 +40,11 @@ def ori(rs, rt):
 def lw(rs, rt):
     imm = random.randint(0, 12287)
     imm = imm - imm % 4
-    reg[rs] = reg[rs] | 0x0000_ffff
     imm = imm - reg[rs]
     if imm > 32767 or imm < -32768 or imm + reg[rs] > 0x0000_2fff or imm + reg[rs] < 0:
         ins = ""
     else:
-        ins = "lui $%d, 0\nlw $%d, %d($%d)\n" % (rs, rt, imm, rs)
+        ins = "lw $%d, %d($%d)\n" % (rt, imm, rs)
         reg[rt] = mem[reg[rs] + imm]
 
     return ins
@@ -54,12 +53,11 @@ def lw(rs, rt):
 def sw(rs, rt):
     imm = random.randint(0, 12287)
     imm = imm - imm % 4
-    reg[rs] = reg[rs] | 0x0000_ffff
     imm = imm - reg[rs]
     if imm > 32767 or imm < -32768 or imm + reg[rs] > 0x0000_2fff or imm + reg[rs] < 0:
         ins = ""
     else:
-        ins = "lui $%d, 0\nsw $%d, %d($%d)\n" % (rs, rt, imm, rs)
+        ins = "sw $%d, %d($%d)\n" % (rt, imm, rs)
         mem[reg[rs] + imm] = reg[rt]
 
     return ins
@@ -122,7 +120,7 @@ def trans(std, ranid):
 
 
 def addInstr(rs, rt, rd):
-    if(config['mixed']):
+    if config['mixed']:
         opcode = random.randint(0, 9)
         if opcode == 0:
             return add(rs, rt, rd)
@@ -178,6 +176,7 @@ def run():
     global std
     global narrow
     config = myParser.prepare_parser()
+    print(config)
     config['label_num'] = 0
     config['jump_num'] = 0
     narrow = config['narrow']
