@@ -1,4 +1,4 @@
-#  说明
+#  Can Can Word auto-Tester
 ## 环境
 Python 3.7
 
@@ -65,3 +65,8 @@ run.sh
 ```
 # 运行
 命令行`run.sh`即可，你将在`compare.txt`内看到本次运行结果
+
+# 获取 & 声明
+在github仓库https://github.com/CharlesSebastian1/BUAA_CO_tester_P5
+
+基于Toby学长的Mars进行的模拟，Mars.jar文件已在当前repo中
