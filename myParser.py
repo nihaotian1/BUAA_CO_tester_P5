@@ -13,7 +13,7 @@ def prepare_parser():
     parser.add_argument("--bound", default=False, type=bool,
                         help="whether include bound-test")
 
-    parser.add_argument("--suit", default=1, type=int,
+    parser.add_argument("--suit", default=2, type=int,
                         help="the type of test Ins")
 
     parser.add_argument("--mixed", default=True, type=bool,

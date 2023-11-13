@@ -2,6 +2,7 @@ import myParser
 import os
 import random
 
+global pc
 global reg
 global mem
 global config
@@ -11,6 +12,8 @@ global narrow
 
 def add(rs, rt, rd):
     global reg
+    global pc
+    pc += 4
     ins = "add $%d, $%d, $%d\n" % (rd, rs, rt)
     if rd != 0:
         reg[rd] = (reg[rs] + reg[rt]) & (4294967296 - 1)
@@ -19,6 +22,8 @@ def add(rs, rt, rd):
 
 def sub(rs, rt, rd):
     global reg
+    global pc
+    pc += 4
     ins = "sub $%d, $%d, $%d\n" % (rd, rs, rt)
     if rd != 0:
         reg[rd] = (reg[rs] - reg[rt]) & (2147483648 - 1)
@@ -26,11 +31,13 @@ def sub(rs, rt, rd):
 
 
 def ori(rs, rt):
+    global reg
+    global pc
+    pc += 4
     if config['bound']:
         imm = random.randint(65530, 65535)
     else:
         imm = random.randint(0, 65535)
-    imm = imm - imm % 4
     ins = "ori $%d, $%d, 0x%x\n" % (rt, rs, imm)  # require 0-ext, 0x0000_xxxx
     if rt != 0:
         reg[rt] = reg[rs] | (imm & (65536 - 1))
@@ -38,7 +45,11 @@ def ori(rs, rt):
 
 
 def lw(rs, rt):
-    imm = random.randint(0, 12287)
+    global reg
+    global mem
+    global pc
+    pc += 4
+    imm = random.randint(0, 0x0000_2fff)
     imm = imm - imm % 4
     imm = imm - reg[rs]
     if imm > 32767 or imm < -32768 or imm + reg[rs] > 0x0000_2fff or imm + reg[rs] < 0:
@@ -51,7 +62,11 @@ def lw(rs, rt):
 
 
 def sw(rs, rt):
-    imm = random.randint(0, 12287)
+    global reg
+    global mem
+    global pc
+    pc += 4
+    imm = random.randint(0, 0x0000_2fff)
     imm = imm - imm % 4
     imm = imm - reg[rs]
     if imm > 32767 or imm < -32768 or imm + reg[rs] > 0x0000_2fff or imm + reg[rs] < 0:
@@ -63,13 +78,41 @@ def sw(rs, rt):
     return ins
 
 
-def beq(rs, rt):
-    ins = "beq $%d, $%d, label%d\nnop\n" % (rs, rt, config['label_num'])
+def beq(rs, rt, rd):
+    global reg
+    global pc
+    pc = pc - 4  # same as jal
+    ins = "beq $%d, $%d, label%d\n" % (rs, rt, config['label_num'])
     config['label_num'] += 1
+    opcode = random.randint(0, 5)
+    # if reg[rs] != reg[rt]:
+    #     db = nop()
+    # elif opcode == 0 and rd != rt and rd != rt:
+    #     db = add(rs, rt, rd)
+    # elif opcode == 1 and rd != rt and rd != rt:
+    #     db = sub(rs, rt, rd)
+    # elif opcode == 2 and rd != rt and rd != rt:
+    #     db = ori(rs, rd)
+    # elif opcode == 3 and rd != rt and rd != rt:
+    #     db = lui(rd)
+    # elif opcode == 4 and (config['mixed'] or config['suit'] == 2) and rd != rt and rd != rt:
+    #     db = lw(rs, rd)
+    #     if db == "":
+    #         db = nop()
+    # elif opcode == 5 and (config['mixed'] or config['suit'] == 2):
+    #     db = sw(rs, rt)
+    #     if db == "":
+    #         db = nop()
+    # else:
+    db = nop()
+    ins = ins + db
     return ins
 
 
 def lui(rt):
+    global reg
+    global pc
+    pc += 4
     if config['bound']:
         imm = random.randint(65530, 65535)
     else:
@@ -80,30 +123,68 @@ def lui(rt):
     return ins
 
 
-def jal():
-    ins = "jal jump%d\nnop\n" % config['jump_num']
+def jal(rs, rt, rd):
+    global reg
+    global pc
+    reg[31] = pc + 8
+    pc = pc - 4  # two ins + 8, it should to sum up +4
+    ins = "jal jump%d\n" % config['jump_num']
     config['jump_num'] += 1
+    opcode = random.randint(0, 5)
+    if opcode == 0 and rd != 31:
+        db = add(rs, rt, rd)
+    elif opcode == 1 and rd != 31:
+        db = sub(rs, rt, rd)
+    elif opcode == 2 and rt != 31:
+        db = ori(rs, rt)
+    elif opcode == 3 and rt != 31:
+        db = lui(rt)
+    elif opcode == 4 and (config['mixed'] or config['suit'] == 2) and rt != 31 and rs != 31:  # untrack reg[31] = pc
+        db = lw(rs, rt)
+        if db == "":
+            db = nop()
+    elif opcode == 5 and (config['mixed'] or config['suit'] == 2) and rs != 31:
+        db = sw(rs, rt)
+        if db == "":
+            db = nop()
+    else:
+        db = nop()
+    ins = ins + db
     return ins
 
 
-def jr():
+def jr(rs, rt, rd):
     global reg
     global std
-    list = []
-    for i in range(narrow + 1):
-        if 0x3000 <= reg[trans(std, i)] <= 0x3000 + 4 * config['test_size'] and reg[trans(std, i)] % 4 == 0:
-            list.append(i)
-
-    if len(list) == 0:
-        return ""
+    global pc
+    pc += 4
+    ins = "jr $31\n"
+    opcode = random.randint(0, 5)
+    if opcode == 0:
+        db = add(rs, rt, rd)
+    elif opcode == 1:
+        db = sub(rs, rt, rd)
+    elif opcode == 2:
+        db = ori(rs, rt)
+    elif opcode == 3:
+        db = lui(rt)
+    elif opcode == 4 and (config['mixed'] or config['suit'] == 2) and rs != 31:
+        db = lw(rs, rd)
+        if db == "":
+            db = nop()
+    elif opcode == 5 and (config['mixed'] or config['suit'] == 2) and rs != 31:
+        db = sw(rs, rt)
+        if db == "":
+            db = nop()
     else:
-        index = random.randint(0, len(list) - 1)
-        rs = list[index]
-        ins = "jr $%d\nnop\n" % rs
-        return ins
+        db = nop()
+    ins = ins + db
+    return ins
 
 
 def nop():
+    global pc
+    pc += 4
     return "nop\n"
 
 
@@ -119,32 +200,14 @@ def trans(std, ranid):
         return std + ranid
 
 
-def addInstr(rs, rt, rd):
-    if config['mixed']:
-        opcode = random.randint(0, 9)
-        if opcode == 0:
-            return add(rs, rt, rd)
-        if opcode == 1:
-            return sub(rs, rt, rd)
-        if opcode == 2:
-            return ori(rs, rt)
-        if opcode == 3:
-            return lw(rs, rt)
-        if opcode == 4:
-            return sw(rs, rt)
-        if opcode == 5:
-            return beq(rs, rt)
-        if opcode == 6:
-            return lui(rt)
-        if opcode == 7:
-            return jal()
-        if opcode == 8:
-            return jr()
-        if opcode == 9:
-            return nop()
-    else:
+def addInstr(rs, rt, rd, op):
+    if op == 2:
+        return jal(rs, rt, rd)
+    elif op == 3:
+        return beq(rs, rt, rd)
+    elif op == 1:
         if config['suit'] == 1:
-            opcode = random.randint(0, 3)
+            opcode = random.randint(0, 4)
             if opcode == 0:
                 return add(rs, rt, rd)
             if opcode == 1:
@@ -153,8 +216,10 @@ def addInstr(rs, rt, rd):
                 return ori(rs, rt)
             if opcode == 3:
                 return lui(rt)
+            if opcode == 4:
+                return nop()
         elif config['suit'] == 2:
-            opcode = random.randint(0, 5)
+            opcode = random.randint(0, 6)
             if opcode == 0:
                 return add(rs, rt, rd)
             if opcode == 1:
@@ -167,6 +232,8 @@ def addInstr(rs, rt, rd):
                 return lw(rs, rt)
             if opcode == 5:
                 return sw(rs, rt)
+            if opcode == 6:
+                return nop()
 
 
 def run():
@@ -175,6 +242,8 @@ def run():
     global reg
     global std
     global narrow
+    global pc
+    pc = 0x3000_0000
     config = myParser.prepare_parser()
     print(config)
     config['label_num'] = 0
@@ -219,8 +288,9 @@ def run():
     file_name = 'code.asm'
     with open(file_name, "w") as file:
         buffer = []
-        labels = []
+        jump = []
         print(config['bound'])
+        # generate basic Instr
         for j in range(config['test_size']):
             if j % 50 == 0:
                 std = random.randint(0, 30-narrow)
@@ -228,25 +298,38 @@ def run():
             rt = trans(std, random.randint(0, narrow))
             rd = trans(std, random.randint(0, narrow))
             print(rs, rt, rd)
-            buffer.append(addInstr(rs, rt, rd))
-
-        for i in range(config['label_num']):
-            labels.append("label%d:\n" % i)
-        for i in range(config['jump_num']):
-            labels.append("jump%d:\n" % i)
-
-        print(buffer)
-        print(labels)
-        random.shuffle(labels)
-        random_insert_list(buffer, labels)
+            op = random.randint(0, 5)
+            if op == 2 and config['mixed']:
+                buffer.append(addInstr(rs, rt, rd, 2))
+                jrstr = jr(rs, rt, rd)
+                jrstr = ("jump%d:\n" % (config['jump_num'] - 1)) + jrstr
+                jump.append(jrstr)
+            elif op == 3 and config['mixed']:
+                beqstr = addInstr(rs, rt, rd, 3)
+                label1 = "label%d:\n" % (config['label_num'] - 1)
+                beq1str = addInstr(rs, rt, rd, 3)
+                beqstr = beqstr + ("label%d:\n" % (config['label_num'] - 1))
+                beq1str = label1 + beq1str
+                buffer.append(beqstr)
+                jump.append(beq1str)
+            else:
+                buffer.append(addInstr(rs, rt, rd, 1))
 
         # do init
         if len(init_asm) != 0:
             for j in init_asm:
                 file.write(j)
 
-        for j in buffer:
-            file.write(j)
+        if config['mixed']:
+            for i in buffer:
+                file.write(i)
+            file.write("beq $0, $0, end\nnop\n")
+            for i in jump:
+                file.write(i)
+            file.write("end:\n")
+        else:
+            for i in buffer:
+                file.write(i)
 
 
 if __name__ == '__main__':
