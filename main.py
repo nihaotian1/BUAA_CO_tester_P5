@@ -85,26 +85,26 @@ def beq(rs, rt, rd):
     ins = "beq $%d, $%d, label%d\n" % (rs, rt, config['label_num'])
     config['label_num'] += 1
     opcode = random.randint(0, 5)
-    # if reg[rs] != reg[rt]:
-    #     db = nop()
-    # elif opcode == 0 and rd != rt and rd != rt:
-    #     db = add(rs, rt, rd)
-    # elif opcode == 1 and rd != rt and rd != rt:
-    #     db = sub(rs, rt, rd)
-    # elif opcode == 2 and rd != rt and rd != rt:
-    #     db = ori(rs, rd)
-    # elif opcode == 3 and rd != rt and rd != rt:
-    #     db = lui(rd)
-    # elif opcode == 4 and (config['mixed'] or config['suit'] == 2) and rd != rt and rd != rt:
-    #     db = lw(rs, rd)
-    #     if db == "":
-    #         db = nop()
-    # elif opcode == 5 and (config['mixed'] or config['suit'] == 2):
-    #     db = sw(rs, rt)
-    #     if db == "":
-    #         db = nop()
-    # else:
-    db = nop()
+    if reg[rs] != reg[rt]:
+        db = nop()
+    elif opcode == 0 and rd != rt and rd != rt:
+        db = add(rs, rt, rd)
+    elif opcode == 1 and rd != rt and rd != rt:
+        db = sub(rs, rt, rd)
+    elif opcode == 2 and rd != rt and rd != rt:
+        db = ori(rs, rd)
+    elif opcode == 3 and rd != rt and rd != rt:
+        db = lui(rd)
+    elif opcode == 4 and (config['mixed'] or config['suit'] == 2) and rd != rt and rd != rt:
+        db = lw(rs, rd)
+        if db == "":
+            db = nop()
+    elif opcode == 5 and (config['mixed'] or config['suit'] == 2):
+        db = sw(rs, rt)
+        if db == "":
+            db = nop()
+    else:
+        db = nop()
     ins = ins + db
     return ins
 
