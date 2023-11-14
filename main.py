@@ -288,7 +288,7 @@ def run():
             op = random.randint(0, 5)
             if op == 2 and config['mixed']:
                 buffer.append(addInstr(rs, rt, rd, 2))
-                jump_op = random.randint(0, 1)  # sw-lw or add-sub or ori(pc+4)
+                jump_op = random.randint(0, 2)  # sw-lw or add-sub or ori(pc+4)
                 if jump_op == 0:  # sw-lw
                     mem[0] = reg[31]
                     jal_db = "sw $31, 0($0)\n"
@@ -299,16 +299,22 @@ def run():
                     jr_before = "ori $1, -4\nadd $31, $1, $31\n"
                     reg[1] = 0xffff_0000
                     reg[31] = pc + 4
+                    pc += 4
                 else:
-                    reg[31] = 0
                     jal_db = "lui $31, 0\n"  # reuse db Instr
-                    jr_before = "ori $31, %d\n" % pc
-                    reg[31] = pc
+                    jr_before = "ori $31, %d\n" % (pc + 4)
+                    reg[31] = pc + 4
+                    pc = pc + 4
                 buffer.append(jal_db)
                 jrstr = jr(rs, rt, rd)
                 jrstr = ("jump%d:\n" % (config['jump_num'] - 1)) + jr_before + jrstr
+                if jump_op == 1:
+                    reg[1] = 0xffff_0000
+                elif jump_op == 2:
+                    reg[31] = 0
                 jump.append(jrstr)
             elif op == 3 and config['mixed']:
+                pc = pc + 4
                 beqstr = addInstr(rs, rt, rd, 3)
                 label1 = "label%d:\n" % (config['label_num'] - 1)
                 beq1str = addInstr(rs, rt, rd, 3)
