@@ -295,14 +295,14 @@ def run():
                     jr_before = "lw $31, 0($0)\n"
                     pc += 4
                 elif jump_op == 1:  # add reuse db
-                    jal_db = "lui $1, %d\n" % 0xffff
-                    jr_before = "ori $1, -4\nadd $31, $1, $31\n"
+                    jal_db = "lui $1, 0xffff\n"
+                    jr_before = "ori $1, $1, 0xfffc\nadd $31, $1, $31\n"
                     reg[1] = 0xffff_0000
                     reg[31] = pc + 4
                     pc += 4
                 else:
                     jal_db = "lui $31, 0\n"  # reuse db Instr
-                    jr_before = "ori $31, %d\n" % (pc + 4)
+                    jr_before = "ori $31, $31, %d\n" % (pc + 4)
                     reg[31] = pc + 4
                     pc = pc + 4
                 buffer.append(jal_db)
