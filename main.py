@@ -12,28 +12,24 @@ global narrow
 
 def add(rs, rt, rd):
     global reg
-    global pc
-    pc += 4
     ins = "add $%d, $%d, $%d\n" % (rd, rs, rt)
     if rd != 0:
         reg[rd] = (reg[rs] + reg[rt]) & (4294967296 - 1)
+    print("@%x : $%d <= %8x" % (pc, rd, reg[rd]))
     return ins
 
 
 def sub(rs, rt, rd):
     global reg
-    global pc
-    pc += 4
     ins = "sub $%d, $%d, $%d\n" % (rd, rs, rt)
     if rd != 0:
         reg[rd] = (reg[rs] - reg[rt]) & (2147483648 - 1)
+    print("@%x : $%d <= %8x" % (pc, rd, reg[rd]))
     return ins
 
 
 def ori(rs, rt):
     global reg
-    global pc
-    pc += 4
     if config['bound']:
         imm = random.randint(65530, 65535)
     else:
@@ -41,14 +37,13 @@ def ori(rs, rt):
     ins = "ori $%d, $%d, 0x%x\n" % (rt, rs, imm)  # require 0-ext, 0x0000_xxxx
     if rt != 0:
         reg[rt] = reg[rs] | (imm & (65536 - 1))
+    print("@%x : $%d <= %8x" % (pc, rt, reg[rt]))
     return ins
 
 
 def lw(rs, rt):
     global reg
     global mem
-    global pc
-    pc += 4
     imm = random.randint(0, 0x0000_2fff)
     imm = imm - imm % 4
     imm = imm - reg[rs]
@@ -64,8 +59,6 @@ def lw(rs, rt):
 def sw(rs, rt):
     global reg
     global mem
-    global pc
-    pc += 4
     imm = random.randint(0, 0x0000_2fff)
     imm = imm - imm % 4
     imm = imm - reg[rs]
@@ -80,22 +73,20 @@ def sw(rs, rt):
 
 def beq(rs, rt, rd):
     global reg
-    global pc
-    pc = pc - 4  # same as jal
     ins = "beq $%d, $%d, label%d\n" % (rs, rt, config['label_num'])
     config['label_num'] += 1
     opcode = random.randint(0, 5)
     if reg[rs] != reg[rt]:
         db = nop()
-    elif opcode == 0 and rd != rt and rd != rt:
+    elif opcode == 0 and rd != rs and rd != rt:
         db = add(rs, rt, rd)
-    elif opcode == 1 and rd != rt and rd != rt:
+    elif opcode == 1 and rd != rs and rd != rt:
         db = sub(rs, rt, rd)
-    elif opcode == 2 and rd != rt and rd != rt:
+    elif opcode == 2 and rd != rs and rd != rt:
         db = ori(rs, rd)
-    elif opcode == 3 and rd != rt and rd != rt:
+    elif opcode == 3 and rd != rs and rd != rt:
         db = lui(rd)
-    elif opcode == 4 and (config['mixed'] or config['suit'] == 2) and rd != rt and rd != rt:
+    elif opcode == 4 and (config['mixed'] or config['suit'] == 2) and rd != rs and rd != rt:
         db = lw(rs, rd)
         if db == "":
             db = nop()
@@ -111,8 +102,6 @@ def beq(rs, rt, rd):
 
 def lui(rt):
     global reg
-    global pc
-    pc += 4
     if config['bound']:
         imm = random.randint(65530, 65535)
     else:
@@ -120,44 +109,41 @@ def lui(rt):
     ins = "lui $%d, 0x%x\n" % (rt, imm)
     if rt != 0:
         reg[rt] = imm << 16
+    print("@%x : $%d <= %8x" % (pc, rt, reg[rt]))
     return ins
 
 
 def jal(rs, rt, rd):
     global reg
-    global pc
     reg[31] = pc + 8
-    pc = pc - 4  # two ins + 8, it should to sum up +4
     ins = "jal jump%d\n" % config['jump_num']
     config['jump_num'] += 1
-    opcode = random.randint(0, 5)
-    if opcode == 0 and rd != 31:
-        db = add(rs, rt, rd)
-    elif opcode == 1 and rd != 31:
-        db = sub(rs, rt, rd)
-    elif opcode == 2 and rt != 31:
-        db = ori(rs, rt)
-    elif opcode == 3 and rt != 31:
-        db = lui(rt)
-    elif opcode == 4 and (config['mixed'] or config['suit'] == 2) and rt != 31 and rs != 31:  # untrack reg[31] = pc
-        db = lw(rs, rt)
-        if db == "":
-            db = nop()
-    elif opcode == 5 and (config['mixed'] or config['suit'] == 2) and rs != 31:
-        db = sw(rs, rt)
-        if db == "":
-            db = nop()
-    else:
-        db = nop()
-    ins = ins + db
+    # opcode = random.randint(0, 5)
+    # if opcode == 0 and rd != 31:
+    #     db = add(31, 0, 31)
+    # elif opcode == 1 and rd != 31:
+    #     db = sub(31, 0, 31)
+    # elif opcode == 2 and rt != 31:
+    #     db = ori(rs, rt)
+    # elif opcode == 3 and rt != 31:
+    #     db = lui(rt)
+    # elif opcode == 4 and (config['mixed'] or config['suit'] == 2) and rt != 31 and rs != 31:  # untrack reg[31] = pc
+    #     db = lw(rs, rt)
+    #     if db == "":
+    #         db = nop()
+    # elif opcode == 5 and (config['mixed'] or config['suit'] == 2) and rs != 31:
+    #     db = sw(rs, rt)
+    #     if db == "":
+    #         db = nop()
+    # else:
+    #     db = nop()
+    # ins = ins + db
     return ins
 
 
 def jr(rs, rt, rd):
     global reg
     global std
-    global pc
-    pc += 4
     ins = "jr $31\n"
     opcode = random.randint(0, 5)
     if opcode == 0:
@@ -184,7 +170,6 @@ def jr(rs, rt, rd):
 
 def nop():
     global pc
-    pc += 4
     return "nop\n"
 
 
@@ -201,6 +186,7 @@ def trans(std, ranid):
 
 
 def addInstr(rs, rt, rd, op):
+    global pc
     if op == 2:
         return jal(rs, rt, rd)
     elif op == 3:
@@ -243,7 +229,7 @@ def run():
     global std
     global narrow
     global pc
-    pc = 0x3000_0000
+    pc = 0x0000_2ffc
     config = myParser.prepare_parser()
     print(config)
     config['label_num'] = 0
@@ -289,20 +275,38 @@ def run():
     with open(file_name, "w") as file:
         buffer = []
         jump = []
-        print(config['bound'])
+        # print(config['bound'])
         # generate basic Instr
         for j in range(config['test_size']):
+            pc = pc + 4
             if j % 50 == 0:
                 std = random.randint(0, 30-narrow)
             rs = trans(std, random.randint(0, narrow))
             rt = trans(std, random.randint(0, narrow))
             rd = trans(std, random.randint(0, narrow))
-            print(rs, rt, rd)
+            # print(rs, rt, rd)
             op = random.randint(0, 5)
             if op == 2 and config['mixed']:
                 buffer.append(addInstr(rs, rt, rd, 2))
+                jump_op = random.randint(0, 1)  # sw-lw or add-sub or ori(pc+4)
+                if jump_op == 0:  # sw-lw
+                    mem[0] = reg[31]
+                    jal_db = "sw $31, 0($0)\n"
+                    jr_before = "lw $31, 0($0)\n"
+                    pc += 4
+                elif jump_op == 1:  # add reuse db
+                    jal_db = "lui $1, %d\n" % 0xffff
+                    jr_before = "ori $1, -4\nadd $31, $1, $31\n"
+                    reg[1] = 0xffff_0000
+                    reg[31] = pc + 4
+                else:
+                    reg[31] = 0
+                    jal_db = "lui $31, 0\n"  # reuse db Instr
+                    jr_before = "ori $31, %d\n" % pc
+                    reg[31] = pc
+                buffer.append(jal_db)
                 jrstr = jr(rs, rt, rd)
-                jrstr = ("jump%d:\n" % (config['jump_num'] - 1)) + jrstr
+                jrstr = ("jump%d:\n" % (config['jump_num'] - 1)) + jr_before + jrstr
                 jump.append(jrstr)
             elif op == 3 and config['mixed']:
                 beqstr = addInstr(rs, rt, rd, 3)
@@ -313,7 +317,13 @@ def run():
                 buffer.append(beqstr)
                 jump.append(beq1str)
             else:
-                buffer.append(addInstr(rs, rt, rd, 1))
+                Instr = addInstr(rs, rt, rd, 1)
+                if Instr != "":
+                    buffer.append(Instr)
+                else:
+                    pc -= 4
+
+            print("now pc %x" % pc)
 
         # do init
         if len(init_asm) != 0:

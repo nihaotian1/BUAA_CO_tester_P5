@@ -4,7 +4,7 @@ from argparse import ArgumentParser
 def prepare_parser():
     parser = ArgumentParser(description="adaptable_command_generaotr")
     
-    parser.add_argument("--test_size", default=500, type=int,
+    parser.add_argument("--test_size", default=300, type=int,
                         help="how many cmd in one asm")
 
     parser.add_argument("--init", default=False, type=bool,
@@ -13,7 +13,7 @@ def prepare_parser():
     parser.add_argument("--bound", default=False, type=bool,
                         help="whether include bound-test")
 
-    parser.add_argument("--suit", default=2, type=int,
+    parser.add_argument("--suit", default=1, type=int,
                         help="the type of test Ins")
 
     parser.add_argument("--mixed", default=True, type=bool,
